@@ -1,0 +1,26 @@
+## Servicio para el productor (interno, no expuesto)
+apiVersion: v1
+kind: Service
+metadata:
+  name: productor-svc
+spec:
+  selector:
+    app: productor
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+## Servicio para el cliente (frontend) — expuesto vía NodePort para acceso desde host
+apiVersion: v1
+kind: Service
+metadata:
+  name: cliente-svc
+spec:
+  type: NodePort
+  selector:
+    app: cliente
+  ports:
+    - port: 80
+      targetPort: 8081
+      # nodePort fijo para facilitar acceso desde el host
+      nodePort: 30007

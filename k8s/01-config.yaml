@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  # Script del productor: genera datos cada 3s y los guarda en Redis
+  PRODUCTOR_SCRIPT: |-
+    # Script Python que actúa como sensor simulado
+    # Lee variables de entorno: BD_HOST, BD_PORT, REDIS_PASSWORD, SENSOR_ID
+    import os
+    import time
+    import json
+    import random
+    from datetime import datetime
+    import redis
+
+    BD_HOST = os.getenv('BD_HOST', 'bd-svc')
+    BD_PORT = int(os.getenv('BD_PORT', '6379'))
+    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
+    SENSOR_ID = os.getenv('SENSOR_ID', 'rbt-01')
+
+    # Conexión al motor Redis con autenticación
+    r = redis.Redis(host=BD_HOST, port=BD_PORT, password=REDIS_PASSWORD, decode_responses=True)
+
+    # Bucle infinito: genera y guarda un JSON cada 3 segundos
+    while True:
+      valor = round(random.random() * 100, 2)
+      timestamp = datetime.utcnow().isoformat() + 'Z'
+      data = {"sensor_id": SENSOR_ID, "valor": valor, "timestamp": timestamp}
+      # Intentamos escribir en Redis; si falla esperamos y reintentamos (evita crashloops)
+      try:
+        r.lpush('sensores', json.dumps(data))
+        print('guardado:', data)
+      except Exception as e:
+        print('Error escribiendo en Redis, reintentando:', e)
+      time.sleep(3)

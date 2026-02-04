@@ -1,0 +1,45 @@
+## Despliegue del productor (sensor simulado)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: productor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: productor
+  template:
+    metadata:
+      labels:
+        app: productor
+    spec:
+      containers:
+      - name: productor
+        # Imagen base ligera con Python disponible
+        image: python:3.11-slim
+        # Inyectamos variables para conectar con 'bd'
+        env:
+        - name: BD_HOST
+          value: "bd-svc"
+        - name: BD_PORT
+          value: "6379"
+        - name: SENSOR_ID
+          value: "rbt-01"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: redis-password
+        volumeMounts:
+        - name: productor-script
+          mountPath: /app/productor.py
+          subPath: PRODUCTOR_SCRIPT
+        # Instalamos redis-py y ejecutamos el script que viene desde ConfigMap
+        command: ["sh", "-c", "pip install redis && python /app/productor.py"]
+      volumes:
+      - name: productor-script
+        configMap:
+          name: app-config
+          items:
+          - key: PRODUCTOR_SCRIPT
+            path: PRODUCTOR_SCRIPT

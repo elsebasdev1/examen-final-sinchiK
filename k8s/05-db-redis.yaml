@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bd-pvc
+  # PVC para persistencia de Redis (bd)
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Despliegue de Redis como 'bd'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bd
+spec:
+  selector:
+    matchLabels:
+      - name: bd
+        # Imagen oficial Redis. Arrancamos con --requirepass usando la variable de entorno.
+        image: redis:7
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: redis-password
+        # Ejecutar el servidor indicando contraseña y appendonly para persistencia AOF
+        command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\" --appendonly yes --dir /data"]
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-data
+          # Ruta de datos para la imagen oficial Redis
+          mountPath: /data
+              key: redis-password
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-data
+          mountPath: /bitnami/redis/data
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: bd-pvc
+---
+# Servicio para acceder a Redis dentro del cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: bd-svc
+spec:
+  selector:
+    app: bd
+  ports:
+    - port: 6379
+      targetPort: 6379
