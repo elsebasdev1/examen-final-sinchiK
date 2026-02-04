@@ -1,28 +1,60 @@
+import time
+import json
+import random
 import os
 import redis
-from flask import Flask, jsonify
+from datetime import datetime
 
-# Microservicio Productor - Generador de datos en modo sensor
-# Se ejecuta en modo sensor (sensor.py) por defecto en K8s
-# Esta API Flask queda disponible solo para debugging
+# Configuración
+REDIS_HOST = os.getenv('REDIS_HOST', 'bd-svc')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_PASS = os.getenv('REDIS_PASS', None)
 
-app = Flask(__name__)
-
-# Conexión a la BD Redis
-DB_HOST = os.getenv("REDIS_HOST", "bd-svc")
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
-SENSOR_ID = os.getenv('SENSOR_ID', 'rbt-01')
-
-# Conexión a Redis con autenticación
-cache = redis.Redis(host=DB_HOST, port=6379, password=REDIS_PASSWORD, decode_responses=True)
-
-@app.route('/health', methods=['GET'])
-def health():
+def connect_db():
     try:
-        cache.ping()
-        return jsonify({"status": "ok"}), 200
+        # Agregamos 'password=REDIS_PASS' a la conexión
+        client = redis.Redis(
+            host=REDIS_HOST, 
+            port=REDIS_PORT, 
+            password=REDIS_PASS, 
+            decode_responses=True
+        )
+        # Probamos conexión (ping)
+        client.ping()
+        print(f"Conectado a Redis en {REDIS_HOST}")
+        return client
     except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+        print(f"Error conectando a Redis: {e}")
+        return None
+
+def main():
+    print("Iniciando Sensor IoT (Productor)...")
+    client = connect_db()
+    
+    # Bucle infinito
+    while True:
+        if not client:
+            client = connect_db()
+            time.sleep(3)
+            continue
+
+        # Generar datos 
+        data = {
+            "sensor_id": "rbt-01",
+            "valor": round(random.uniform(10.0, 100.0), 2),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+        try:
+            # Guardamos en una lista de Redis llamada "sensores"
+            client.lpush("sensores", json.dumps(data))
+            client.ltrim("sensores", 0, 99)
+            print(f"Dato enviado: {data}")
+        except Exception as e:
+            print(f"Error enviando dato: {e}")
+            client = None # Forzar reconexión
+
+        time.sleep(3) # Espera de 3 segundos
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    main()
