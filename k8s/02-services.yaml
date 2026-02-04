@@ -1,4 +1,4 @@
-## Servicio para el productor (interno, no expuesto)
+## Servicio para el productor
 apiVersion: v1
 kind: Service
 metadata:
@@ -10,7 +10,7 @@ spec:
     - port: 5000
       targetPort: 5000
 ---
-## Servicio para el cliente (frontend) — expuesto vía NodePort para acceso desde host
+## Servicio para el cliente
 apiVersion: v1
 kind: Service
 metadata:
@@ -22,5 +22,4 @@ spec:
   ports:
     - port: 80
       targetPort: 8081
-      # nodePort fijo para facilitar acceso desde el host
       nodePort: 30007

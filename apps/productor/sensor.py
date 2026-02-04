@@ -1,5 +1,4 @@
 # Script sensor: genera datos cada 3 segundos y los guarda en Redis
-# Lee variables de entorno: BD_HOST, BD_PORT, REDIS_PASSWORD, SENSOR_ID
 
 import os
 import time

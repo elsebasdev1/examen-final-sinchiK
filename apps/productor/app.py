@@ -12,7 +12,6 @@ REDIS_PASS = os.getenv('REDIS_PASS', None)
 
 def connect_db():
     try:
-        # Agregamos 'password=REDIS_PASS' a la conexión
         client = redis.Redis(
             host=REDIS_HOST, 
             port=REDIS_PORT, 
